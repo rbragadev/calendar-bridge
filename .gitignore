@@ -2,6 +2,9 @@
 api/.env
 web/.env
 
+# Claude Code settings
+.claude/
+
 # Dependencies
 node_modules/
 api/node_modules/
