@@ -33,6 +33,11 @@ services:
     name: calendar-bridge-web
     runtime: static
     buildCommand: cd web && npm install && npm run build
+    staticPublishPath: ./web/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
       - key: VITE_API_URL
         sync: false
