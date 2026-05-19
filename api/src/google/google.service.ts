@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OAuth2Client } from 'google-auth-library';
 import { google, calendar_v3 } from 'googleapis';
-import { PrismaService, DEFAULT_USER_ID } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { CryptoService } from '../crypto/crypto.service';
 
 @Injectable()
@@ -23,11 +23,11 @@ export class GoogleService {
     );
   }
 
-  getAuthorizationUrl(): string {
+  getAuthorizationUrl(userId: string): string {
     const client = this.createOAuth2Client();
     return client.generateAuthUrl({
       access_type: 'offline',
-      prompt: 'consent',
+      prompt: 'select_account consent',
       scope: [
         'https://www.googleapis.com/auth/calendar.readonly',
         'https://www.googleapis.com/auth/calendar.events',
@@ -36,15 +36,16 @@ export class GoogleService {
         'email',
         'profile',
       ],
+      state: userId,
     });
   }
 
-  async exchangeCodeAndSave(code: string): Promise<{ email: string }> {
+  async exchangeCodeAndSave(code: string, userId: string): Promise<{ email: string }> {
     const client = this.createOAuth2Client();
     const { tokens } = await client.getToken(code);
 
     if (!tokens.refresh_token) {
-      throw new Error('No refresh_token received. Revoke access and try again.');
+      throw new Error('No refresh_token received. Revoke app access in Google and try again.');
     }
 
     client.setCredentials(tokens);
@@ -53,12 +54,7 @@ export class GoogleService {
     const email = userInfo.email;
 
     await this.prisma.googleAccount.upsert({
-      where: {
-        userId_googleEmail: {
-          userId: DEFAULT_USER_ID,
-          googleEmail: email,
-        },
-      },
+      where: { userId_googleEmail: { userId, googleEmail: email } },
       update: {
         accessToken: this.crypto.encrypt(tokens.access_token || ''),
         refreshToken: this.crypto.encrypt(tokens.refresh_token),
@@ -66,7 +62,7 @@ export class GoogleService {
         scope: tokens.scope || '',
       },
       create: {
-        userId: DEFAULT_USER_ID,
+        userId,
         googleEmail: email,
         accessToken: this.crypto.encrypt(tokens.access_token || ''),
         refreshToken: this.crypto.encrypt(tokens.refresh_token),
@@ -80,12 +76,9 @@ export class GoogleService {
 
   async getAuthenticatedClient(accountId: string): Promise<OAuth2Client> {
     const account = await this.prisma.googleAccount.findUnique({ where: { id: accountId } });
-    if (!account) {
-      throw new NotFoundException(`Google account ${accountId} not found`);
-    }
+    if (!account) throw new NotFoundException(`Google account ${accountId} not found`);
 
     const client = this.createOAuth2Client();
-
     client.setCredentials({
       refresh_token: this.crypto.decrypt(account.refreshToken),
       access_token: account.accessToken ? this.crypto.decrypt(account.accessToken) : undefined,
@@ -94,44 +87,26 @@ export class GoogleService {
 
     client.on('tokens', async (tokens) => {
       const updateData: any = {};
-      if (tokens.access_token) {
-        updateData.accessToken = this.crypto.encrypt(tokens.access_token);
-      }
-      if (tokens.expiry_date) {
-        updateData.expiresAt = new Date(tokens.expiry_date);
-      }
-      if (tokens.refresh_token) {
-        updateData.refreshToken = this.crypto.encrypt(tokens.refresh_token);
-      }
+      if (tokens.access_token) updateData.accessToken = this.crypto.encrypt(tokens.access_token);
+      if (tokens.expiry_date) updateData.expiresAt = new Date(tokens.expiry_date);
+      if (tokens.refresh_token) updateData.refreshToken = this.crypto.encrypt(tokens.refresh_token);
       await this.prisma.googleAccount.update({ where: { id: accountId }, data: updateData });
     });
 
     return client;
   }
 
-  async listAccounts() {
-    const accounts = await this.prisma.googleAccount.findMany({
-      where: { userId: DEFAULT_USER_ID },
-      select: {
-        id: true,
-        googleEmail: true,
-        expiresAt: true,
-        scope: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+  async listAccounts(userId: string) {
+    return this.prisma.googleAccount.findMany({
+      where: { userId },
+      select: { id: true, googleEmail: true, expiresAt: true, scope: true, createdAt: true, updatedAt: true },
       orderBy: { createdAt: 'asc' },
     });
-    return accounts;
   }
 
-  async deleteAccount(accountId: string) {
-    const account = await this.prisma.googleAccount.findFirst({
-      where: { id: accountId, userId: DEFAULT_USER_ID },
-    });
-    if (!account) {
-      throw new NotFoundException(`Account ${accountId} not found`);
-    }
+  async deleteAccount(accountId: string, userId: string) {
+    const account = await this.prisma.googleAccount.findFirst({ where: { id: accountId, userId } });
+    if (!account) throw new NotFoundException(`Account ${accountId} not found`);
     await this.prisma.googleAccount.delete({ where: { id: accountId } });
     return { deleted: true };
   }
@@ -143,15 +118,9 @@ export class GoogleService {
     return data.items || [];
   }
 
-  async listEvents(
-    accountId: string,
-    calendarId: string,
-    timeMin: Date,
-    timeMax: Date,
-  ): Promise<calendar_v3.Schema$Event[]> {
+  async listEvents(accountId: string, calendarId: string, timeMin: Date, timeMax: Date): Promise<calendar_v3.Schema$Event[]> {
     const authClient = await this.getAuthenticatedClient(accountId);
     const cal = google.calendar({ version: 'v3', auth: authClient });
-
     const allEvents: calendar_v3.Schema$Event[] = [];
     let pageToken: string | undefined;
 
@@ -165,32 +134,21 @@ export class GoogleService {
         pageToken,
         maxResults: 250,
       });
-      if (data.items) {
-        allEvents.push(...data.items);
-      }
+      if (data.items) allEvents.push(...data.items);
       pageToken = data.nextPageToken || undefined;
     } while (pageToken);
 
     return allEvents;
   }
 
-  async createEvent(
-    accountId: string,
-    calendarId: string,
-    event: calendar_v3.Schema$Event,
-  ): Promise<calendar_v3.Schema$Event> {
+  async createEvent(accountId: string, calendarId: string, event: calendar_v3.Schema$Event): Promise<calendar_v3.Schema$Event> {
     const authClient = await this.getAuthenticatedClient(accountId);
     const cal = google.calendar({ version: 'v3', auth: authClient });
     const { data } = await cal.events.insert({ calendarId, requestBody: event });
     return data;
   }
 
-  async updateEvent(
-    accountId: string,
-    calendarId: string,
-    eventId: string,
-    event: calendar_v3.Schema$Event,
-  ): Promise<calendar_v3.Schema$Event> {
+  async updateEvent(accountId: string, calendarId: string, eventId: string, event: calendar_v3.Schema$Event): Promise<calendar_v3.Schema$Event> {
     const authClient = await this.getAuthenticatedClient(accountId);
     const cal = google.calendar({ version: 'v3', auth: authClient });
     const { data } = await cal.events.update({ calendarId, eventId, requestBody: event });
@@ -204,7 +162,7 @@ export class GoogleService {
       await cal.events.delete({ calendarId, eventId });
     } catch (err: any) {
       if (err?.code === 404 || err?.code === 410) {
-        this.logger.warn(`Event ${eventId} already deleted in Google Calendar`);
+        this.logger.warn(`Event ${eventId} already deleted`);
         return;
       }
       throw err;

@@ -7,6 +7,8 @@ export default function AccountsPage() {
   const [accounts, setAccounts] = useState<GoogleAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
+  const [copyingLink, setCopyingLink] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
   const connected = searchParams.get('connected');
@@ -39,10 +41,24 @@ export default function AccountsPage() {
     setConnecting(true);
     try {
       const url = await getOAuthUrl();
-      window.location.href = url;
+      globalThis.location.href = url;
     } catch {
       setError('Falha ao obter URL de autorização');
       setConnecting(false);
+    }
+  }
+
+  async function handleCopyLink() {
+    setCopyingLink(true);
+    try {
+      const url = await getOAuthUrl();
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    } catch {
+      setError('Falha ao copiar link');
+    } finally {
+      setCopyingLink(false);
     }
   }
 
@@ -56,19 +72,72 @@ export default function AccountsPage() {
     }
   }
 
+  const copyLinkLabel = copyingLink ? 'Gerando...' : '🔗 Copiar link de conexão';
+
+  function renderList() {
+    if (loading) return <p className="text-gray-500">Carregando...</p>;
+    if (accounts.length === 0) {
+      return (
+        <div className="bg-white border border-dashed border-gray-300 rounded-xl p-10 text-center text-gray-400">
+          <p className="text-lg">Nenhuma conta conectada ainda</p>
+          <p className="text-sm mt-1">Clique em "Conectar conta Google" para começar</p>
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-3">
+        {accounts.map((acc) => (
+          <div
+            key={acc.id}
+            className="bg-white border border-gray-200 rounded-xl px-5 py-4 flex items-center justify-between"
+          >
+            <div>
+              <p className="font-medium text-gray-800">{acc.googleEmail}</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Conectado em {new Date(acc.createdAt).toLocaleDateString('pt-BR')}
+              </p>
+            </div>
+            <button
+              onClick={() => handleDelete(acc.id, acc.googleEmail)}
+              className="text-red-500 hover:text-red-700 text-sm font-medium transition-colors"
+            >
+              Remover
+            </button>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <h1 className="text-2xl font-bold text-gray-800">Contas Google</h1>
-        <button
-          onClick={handleConnect}
-          disabled={connecting}
-          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-        >
-          {connecting ? 'Redirecionando...' : '+ Conectar conta Google'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCopyLink}
+            disabled={copyingLink}
+            title="Gera um link OAuth. Abra em outro perfil do Chrome para conectar uma conta diferente."
+            className="border border-gray-300 hover:bg-gray-50 disabled:opacity-60 text-gray-700 px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+          >
+            {copied ? '✅ Link copiado!' : copyLinkLabel}
+          </button>
+          <button
+            onClick={handleConnect}
+            disabled={connecting}
+            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+          >
+            {connecting ? 'Redirecionando...' : '+ Conectar conta Google'}
+          </button>
+        </div>
       </div>
 
+      {copied && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg px-4 py-3 text-sm">
+          🔗 Link copiado! Cole e abra em outro perfil do Chrome onde a outra conta Google está logada.
+          O link expira em alguns minutos.
+        </div>
+      )}
       {connected && (
         <div className="bg-green-50 border border-green-300 text-green-800 rounded-lg px-4 py-3 text-sm">
           ✅ Conta conectada com sucesso!
@@ -85,36 +154,7 @@ export default function AccountsPage() {
         </div>
       )}
 
-      {loading ? (
-        <p className="text-gray-500">Carregando...</p>
-      ) : accounts.length === 0 ? (
-        <div className="bg-white border border-dashed border-gray-300 rounded-xl p-10 text-center text-gray-400">
-          <p className="text-lg">Nenhuma conta conectada ainda</p>
-          <p className="text-sm mt-1">Clique em "Conectar conta Google" para começar</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {accounts.map((acc) => (
-            <div
-              key={acc.id}
-              className="bg-white border border-gray-200 rounded-xl px-5 py-4 flex items-center justify-between"
-            >
-              <div>
-                <p className="font-medium text-gray-800">{acc.googleEmail}</p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  Conectado em {new Date(acc.createdAt).toLocaleDateString('pt-BR')}
-                </p>
-              </div>
-              <button
-                onClick={() => handleDelete(acc.id, acc.googleEmail)}
-                className="text-red-500 hover:text-red-700 text-sm font-medium transition-colors"
-              >
-                Remover
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      {renderList()}
     </div>
   );
 }

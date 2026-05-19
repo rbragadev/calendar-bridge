@@ -1,7 +1,9 @@
 import { Controller, Post, UseGuards, Logger } from '@nestjs/common';
 import { InternalSyncGuard } from './internal.guard';
 import { SyncService } from '../sync/sync.service';
+import { Public } from '../auth/public.decorator';
 
+@Public()
 @Controller('internal')
 export class InternalController {
   private readonly logger = new Logger(InternalController.name);

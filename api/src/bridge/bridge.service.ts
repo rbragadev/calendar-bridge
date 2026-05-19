@@ -1,10 +1,5 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ConflictException,
-} from '@nestjs/common';
-import { PrismaService, DEFAULT_USER_ID } from '../prisma/prisma.service';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateBridgeDto } from './dto/create-bridge.dto';
 import { UpdateBridgeDto } from './dto/update-bridge.dto';
 
@@ -12,43 +7,27 @@ import { UpdateBridgeDto } from './dto/update-bridge.dto';
 export class BridgeService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateBridgeDto) {
+  async create(dto: CreateBridgeDto, userId: string) {
     const { sourceAccountId, sourceCalendarId, targetAccountId, targetCalendarId } = dto;
 
     if (sourceAccountId === targetAccountId && sourceCalendarId === targetCalendarId) {
       throw new BadRequestException('Source and target calendar cannot be the same');
     }
 
-    const existingAccount = await this.prisma.googleAccount.findFirst({
-      where: { id: sourceAccountId, userId: DEFAULT_USER_ID },
-    });
-    if (!existingAccount) {
-      throw new NotFoundException(`Source account ${sourceAccountId} not found`);
-    }
+    const sourceAccount = await this.prisma.googleAccount.findFirst({ where: { id: sourceAccountId, userId } });
+    if (!sourceAccount) throw new NotFoundException(`Source account ${sourceAccountId} not found`);
 
-    const existingTargetAccount = await this.prisma.googleAccount.findFirst({
-      where: { id: targetAccountId, userId: DEFAULT_USER_ID },
-    });
-    if (!existingTargetAccount) {
-      throw new NotFoundException(`Target account ${targetAccountId} not found`);
-    }
+    const targetAccount = await this.prisma.googleAccount.findFirst({ where: { id: targetAccountId, userId } });
+    if (!targetAccount) throw new NotFoundException(`Target account ${targetAccountId} not found`);
 
     const duplicate = await this.prisma.calendarBridge.findFirst({
-      where: {
-        userId: DEFAULT_USER_ID,
-        sourceAccountId,
-        sourceCalendarId,
-        targetAccountId,
-        targetCalendarId,
-      },
+      where: { userId, sourceAccountId, sourceCalendarId, targetAccountId, targetCalendarId },
     });
-    if (duplicate) {
-      throw new ConflictException('A bridge with these exact settings already exists');
-    }
+    if (duplicate) throw new ConflictException('A bridge with these exact settings already exists');
 
     return this.prisma.calendarBridge.create({
       data: {
-        userId: DEFAULT_USER_ID,
+        userId,
         sourceAccountId,
         sourceCalendarId,
         targetAccountId,
@@ -65,9 +44,9 @@ export class BridgeService {
     });
   }
 
-  async findAll() {
+  async findAll(userId: string) {
     return this.prisma.calendarBridge.findMany({
-      where: { userId: DEFAULT_USER_ID },
+      where: { userId },
       include: {
         sourceAccount: { select: { id: true, googleEmail: true } },
         targetAccount: { select: { id: true, googleEmail: true } },
@@ -76,22 +55,20 @@ export class BridgeService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, userId: string) {
     const bridge = await this.prisma.calendarBridge.findFirst({
-      where: { id, userId: DEFAULT_USER_ID },
+      where: { id, userId },
       include: {
         sourceAccount: { select: { id: true, googleEmail: true } },
         targetAccount: { select: { id: true, googleEmail: true } },
       },
     });
-    if (!bridge) {
-      throw new NotFoundException(`Bridge ${id} not found`);
-    }
+    if (!bridge) throw new NotFoundException(`Bridge ${id} not found`);
     return bridge;
   }
 
-  async update(id: string, dto: UpdateBridgeDto) {
-    await this.findOne(id);
+  async update(id: string, dto: UpdateBridgeDto, userId: string) {
+    await this.findOne(id, userId);
     return this.prisma.calendarBridge.update({
       where: { id },
       data: dto,
@@ -102,14 +79,14 @@ export class BridgeService {
     });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, userId: string) {
+    await this.findOne(id, userId);
     await this.prisma.calendarBridge.delete({ where: { id } });
     return { deleted: true };
   }
 
-  async getLogs(bridgeId: string, limit = 50) {
-    await this.findOne(bridgeId);
+  async getLogs(bridgeId: string, userId: string, limit = 50) {
+    await this.findOne(bridgeId, userId);
     return this.prisma.syncLog.findMany({
       where: { bridgeId },
       orderBy: { createdAt: 'desc' },
@@ -117,8 +94,11 @@ export class BridgeService {
     });
   }
 
-  async getAllLogs(limit = 100) {
+  async getAllLogs(userId: string, limit = 100) {
+    const bridges = await this.prisma.calendarBridge.findMany({ where: { userId }, select: { id: true } });
+    const bridgeIds = bridges.map((b) => b.id);
     return this.prisma.syncLog.findMany({
+      where: { bridgeId: { in: bridgeIds } },
       orderBy: { createdAt: 'desc' },
       take: limit,
     });
