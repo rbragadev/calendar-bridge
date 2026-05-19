@@ -1,0 +1,31 @@
+name: Calendar Bridge Sync
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    name: Trigger Sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Trigger internal sync endpoint
+        run: |
+          RESPONSE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST "${{ secrets.CALENDAR_BRIDGE_API_URL }}/internal/sync" \
+            -H "Authorization: Bearer ${{ secrets.INTERNAL_SYNC_TOKEN }}" \
+            -H "Content-Type: application/json")
+
+          echo "HTTP Status: $RESPONSE"
+          echo "Response body:"
+          cat /tmp/response.json
+
+          if [ "$RESPONSE" != "200" ] && [ "$RESPONSE" != "201" ]; then
+            echo "Sync failed with HTTP $RESPONSE"
+            exit 1
+          fi
+
+          echo "Sync completed successfully"

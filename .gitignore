@@ -1,0 +1,18 @@
+# Env — nunca commitar
+api/.env
+web/.env
+
+# Dependencies
+node_modules/
+api/node_modules/
+web/node_modules/
+
+# Build
+api/dist/
+web/dist/
+
+# Prisma
+api/prisma/migrations/
+
+# OS
+.DS_Store

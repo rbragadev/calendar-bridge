@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  googleAccounts GoogleAccount[]
+  bridges        CalendarBridge[]
+}
+
+model GoogleAccount {
+  id           String   @id @default(cuid())
+  userId       String
+  googleEmail  String
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  scope        String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceBridges CalendarBridge[] @relation("SourceAccount")
+  targetBridges CalendarBridge[] @relation("TargetAccount")
+
+  @@unique([userId, googleEmail])
+}
+
+model CalendarBridge {
+  id               String   @id @default(cuid())
+  userId           String
+  sourceAccountId  String
+  sourceCalendarId String
+  targetAccountId  String
+  targetCalendarId String
+  titleTemplate    String   @default("Busy")
+  syncPastDays     Int      @default(1)
+  syncFutureDays   Int      @default(30)
+  enabled          Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceAccount GoogleAccount     @relation("SourceAccount", fields: [sourceAccountId], references: [id], onDelete: Cascade)
+  targetAccount GoogleAccount     @relation("TargetAccount", fields: [targetAccountId], references: [id], onDelete: Cascade)
+  syncEvents    BridgeSyncEvent[]
+  logs          SyncLog[]
+}
+
+model BridgeSyncEvent {
+  id              String    @id @default(cuid())
+  bridgeId        String
+  sourceEventId   String
+  targetEventId   String?
+  sourceUpdatedAt DateTime?
+  startTime       DateTime
+  endTime         DateTime
+  status          String    @default("active")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  bridge CalendarBridge @relation(fields: [bridgeId], references: [id], onDelete: Cascade)
+
+  @@unique([bridgeId, sourceEventId])
+}
+
+model SyncLog {
+  id        String   @id @default(cuid())
+  bridgeId  String?
+  level     String
+  message   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  bridge CalendarBridge? @relation(fields: [bridgeId], references: [id], onDelete: SetNull)
+}
