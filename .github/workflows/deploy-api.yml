@@ -1,0 +1,29 @@
+name: Deploy API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "api/**"
+      - "deploy.sh"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Write env file
+        run: echo "${{ secrets.API_ENV_FILE }}" > api/.env
+
+      - name: Deploy
+        run: |
+          chmod +x deploy.sh
+          ./deploy.sh
