@@ -1,21 +1,23 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, RefreshCw, CheckCircle, AlertCircle, FileText } from 'lucide-react';
 import { SyncLog } from '../types';
 import { getAllLogs } from '../api/logs';
+import Card from '../components/ui/Card';
+import Badge from '../components/ui/Badge';
+import Button from '../components/ui/Button';
 
 export default function LogsPage() {
   const [logs, setLogs] = useState<SyncLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
   async function load() {
     setLoading(true);
     try {
-      const data = await getAllLogs(100);
-      setLogs(data);
+      setLogs(await getAllLogs(100));
     } catch {
       setError('Falha ao carregar logs');
     } finally {
@@ -23,72 +25,80 @@ export default function LogsPage() {
     }
   }
 
-  function formatDate(iso: string) {
-    return new Date(iso).toLocaleString('pt-BR');
-  }
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-800">Logs de Sincronização</h1>
-        <button
-          onClick={load}
-          className="text-sm border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-lg"
-        >
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between pt-1">
+        <div className="flex items-center gap-2">
+          <Link to="/home" className="w-8 h-8 bg-white rounded-xl shadow-card flex items-center justify-center text-gray-400">
+            <ArrowLeft size={16} />
+          </Link>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Logs de Sync</h1>
+            <p className="text-xs text-gray-400">Histórico de sincronizações</p>
+          </div>
+        </div>
+        <Button size="sm" variant="secondary" onClick={load} disabled={loading}>
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           Atualizar
-        </button>
+        </Button>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-300 text-red-800 rounded-lg px-4 py-3 text-sm">
+        <div className="bg-red-50 border border-red-100 text-red-700 rounded-2xl px-4 py-3 text-sm">
           {error}
         </div>
       )}
 
       {loading ? (
-        <p className="text-gray-500">Carregando...</p>
-      ) : logs.length === 0 ? (
-        <div className="bg-white border border-dashed border-gray-300 rounded-xl p-10 text-center text-gray-400">
-          <p>Nenhum log de sincronização ainda.</p>
-          <p className="text-sm mt-1">Execute um sync em uma bridge para ver os resultados aqui.</p>
+        <div className="space-y-2 animate-pulse">
+          {[1, 2, 3, 4].map((i) => <div key={i} className="h-16 bg-white rounded-2xl" />)}
         </div>
+      ) : logs.length === 0 ? (
+        <Card padding="lg" className="text-center space-y-3">
+          <FileText size={32} className="text-gray-200 mx-auto" />
+          <div>
+            <p className="font-semibold text-gray-700">Nenhum log ainda</p>
+            <p className="text-sm text-gray-400 mt-1">
+              Execute um sync em uma bridge para ver os resultados aqui.
+            </p>
+          </div>
+        </Card>
       ) : (
         <div className="space-y-2">
           {logs.map((log) => (
-            <div
-              key={log.id}
-              className={`bg-white border rounded-xl px-5 py-4 ${
-                log.level === 'error' ? 'border-red-200' : 'border-gray-200'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <span
-                    className={`mt-0.5 text-xs font-bold px-2 py-0.5 rounded-full ${
-                      log.level === 'error'
-                        ? 'bg-red-100 text-red-700'
-                        : 'bg-green-100 text-green-700'
-                    }`}
-                  >
-                    {log.level.toUpperCase()}
-                  </span>
-                  <div>
-                    <p className="text-sm text-gray-800">{log.message}</p>
-                    {log.bridgeId && (
-                      <p className="text-xs text-gray-400 mt-0.5 font-mono">
-                        Bridge: {log.bridgeId}
-                      </p>
-                    )}
-                    {log.metadata && (
-                      <pre className="text-xs text-gray-500 mt-1 bg-gray-50 rounded px-2 py-1 overflow-x-auto">
-                        {JSON.stringify(log.metadata, null, 2)}
-                      </pre>
-                    )}
-                  </div>
+            <Card key={log.id} padding="md" className="space-y-2">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 shrink-0">
+                  {log.level === 'error' ? (
+                    <AlertCircle size={16} className="text-red-500" />
+                  ) : (
+                    <CheckCircle size={16} className="text-green-500" />
+                  )}
                 </div>
-                <span className="text-xs text-gray-400 shrink-0">{formatDate(log.createdAt)}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <Badge variant={log.level === 'error' ? 'error' : 'active'}>
+                      {log.level.toUpperCase()}
+                    </Badge>
+                    <span className="text-xs text-gray-400">
+                      {new Date(log.createdAt).toLocaleString('pt-BR')}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-800 mt-1">{log.message}</p>
+                  {log.bridgeId && (
+                    <p className="text-xs text-gray-400 mt-0.5 font-mono truncate">
+                      Bridge: {log.bridgeId}
+                    </p>
+                  )}
+                  {log.metadata && (
+                    <pre className="text-xs text-gray-500 mt-1 bg-gray-50 rounded-xl px-3 py-2 overflow-x-auto">
+                      {JSON.stringify(log.metadata, null, 2)}
+                    </pre>
+                  )}
+                </div>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       )}

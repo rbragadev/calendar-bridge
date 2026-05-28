@@ -10,15 +10,15 @@ export default function AuthCallbackPage() {
     const token = searchParams.get('token');
     if (token) {
       setToken(token);
-      navigate('/accounts', { replace: true });
+      navigate('/home', { replace: true });
     } else {
       navigate('/login?error=no_token', { replace: true });
     }
   }, [searchParams, navigate]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <p className="text-gray-500">Autenticando...</p>
+    <div className="min-h-screen bg-brand-50 flex items-center justify-center">
+      <p className="text-brand-400 font-medium">Autenticando...</p>
     </div>
   );
 }
