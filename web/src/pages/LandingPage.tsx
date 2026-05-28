@@ -76,7 +76,7 @@ export default function LandingPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link to="/login">
-              <Button size="lg" variant="primary" className="bg-white text-brand-600 hover:bg-brand-50">
+              <Button size="lg" variant="light">
                 Começar gratuitamente
               </Button>
             </Link>
@@ -165,7 +165,7 @@ export default function LandingPage() {
           <h2 className="text-2xl font-bold">Pronto para sincronizar suas agendas?</h2>
           <p className="text-brand-200">Comece agora mesmo, é grátis e sem cartão de crédito.</p>
           <Link to="/login">
-            <Button size="lg" className="bg-white text-brand-600 hover:bg-brand-50 mt-2">
+            <Button size="lg" variant="light" className="mt-2">
               Criar conta grátis
             </Button>
           </Link>
