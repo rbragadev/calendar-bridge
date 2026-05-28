@@ -4,6 +4,7 @@ import { Plus, ArrowLeftRight, Settings, Shield, Activity, ChevronRight, Clock }
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
+import BuyMeCoffee from '../components/BuyMeCoffee';
 import { listAccounts } from '../api/accounts';
 import { listBridges } from '../api/bridges';
 import { getAllLogs } from '../api/logs';
@@ -177,6 +178,8 @@ export default function HomePage() {
           </Link>
         </Card>
       )}
+
+      <BuyMeCoffee />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeftRight, Shield, Zap, Lock, Calendar, Check, ChevronDown } from 'lucide-react';
 import Button from '../components/ui/Button';
+import BuyMeCoffee from '../components/BuyMeCoffee';
 
 const features = [
   {
@@ -169,6 +170,13 @@ export default function LandingPage() {
               Criar conta grátis
             </Button>
           </Link>
+        </div>
+      </section>
+
+      {/* Buy me a coffee */}
+      <section className="py-12 px-5 bg-white">
+        <div className="max-w-md mx-auto">
+          <BuyMeCoffee />
         </div>
       </section>
 
