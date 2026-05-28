@@ -1,3 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background-color: #EEF2FF;
+    color: #1E1B4B;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer utilities {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .h-safe-bottom {
+    height: env(safe-area-inset-bottom, 0px);
+  }
+}

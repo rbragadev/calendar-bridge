@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react';
-import { GoogleAccount, Calendar } from '../types';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, Calendar, ChevronDown, ArrowLeftRight } from 'lucide-react';
+import { GoogleAccount, Calendar as Cal } from '../types';
 import { listAccounts, listCalendars } from '../api/accounts';
+import Card from '../components/ui/Card';
+import Badge from '../components/ui/Badge';
+import Button from '../components/ui/Button';
 
 export default function CalendarsPage() {
   const [accounts, setAccounts] = useState<GoogleAccount[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState('');
-  const [calendars, setCalendars] = useState<Calendar[]>([]);
+  const [calendars, setCalendars] = useState<Cal[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   const [loadingCals, setLoadingCals] = useState(false);
   const [error, setError] = useState('');
@@ -31,34 +36,48 @@ export default function CalendarsPage() {
   }, [selectedAccountId]);
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-800">Agendas</h1>
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-2 pt-1">
+        <Link to="/home" className="w-8 h-8 bg-white rounded-xl shadow-card flex items-center justify-center text-gray-400">
+          <ArrowLeft size={16} />
+        </Link>
+        <div className="flex-1">
+          <h1 className="text-xl font-bold text-gray-900">Agendas</h1>
+          <p className="text-xs text-gray-400">Visualize as agendas disponíveis</p>
+        </div>
+      </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-300 text-red-800 rounded-lg px-4 py-3 text-sm">
+        <div className="bg-red-50 border border-red-100 text-red-700 rounded-2xl px-4 py-3 text-sm">
           {error}
         </div>
       )}
 
       {loadingAccounts ? (
-        <p className="text-gray-500">Carregando contas...</p>
-      ) : accounts.length === 0 ? (
-        <div className="bg-white border border-dashed border-gray-300 rounded-xl p-10 text-center text-gray-400">
-          <p>Nenhuma conta Google conectada.</p>
-          <a href="/accounts" className="text-blue-600 text-sm mt-1 inline-block hover:underline">
-            Conectar uma conta
-          </a>
+        <div className="space-y-3 animate-pulse">
+          <div className="h-12 bg-white rounded-2xl" />
+          <div className="h-20 bg-white rounded-2xl" />
         </div>
+      ) : accounts.length === 0 ? (
+        <Card padding="lg" className="text-center space-y-3">
+          <Calendar size={32} className="text-gray-200 mx-auto" />
+          <div>
+            <p className="font-semibold text-gray-700">Nenhuma conta Google conectada</p>
+            <p className="text-sm text-gray-400 mt-1">Conecte uma conta para ver suas agendas.</p>
+          </div>
+          <Link to="/accounts">
+            <Button size="sm" variant="secondary">Conectar conta</Button>
+          </Link>
+        </Card>
       ) : (
         <>
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Selecionar conta
-            </label>
+          {/* Account selector */}
+          <div className="relative">
             <select
               value={selectedAccountId}
               onChange={(e) => setSelectedAccountId(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm font-medium text-gray-700 appearance-none focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-card pr-10"
             >
               {accounts.map((acc) => (
                 <option key={acc.id} value={acc.id}>
@@ -66,39 +85,53 @@ export default function CalendarsPage() {
                 </option>
               ))}
             </select>
+            <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           </div>
 
+          {/* Calendars list */}
           {loadingCals ? (
-            <p className="text-gray-500">Carregando agendas...</p>
+            <div className="space-y-2 animate-pulse">
+              {[1, 2, 3].map((i) => <div key={i} className="h-16 bg-white rounded-2xl" />)}
+            </div>
           ) : (
             <div className="space-y-2">
+              {/* Email group header */}
+              <p className="text-xs text-gray-400 font-medium px-1">
+                {accounts.find((a) => a.id === selectedAccountId)?.googleEmail}
+              </p>
+
               {calendars.map((cal) => (
-                <div
-                  key={cal.id}
-                  className="bg-white border border-gray-200 rounded-xl px-5 py-4 flex items-center gap-3"
-                >
-                  {cal.backgroundColor && (
-                    <span
-                      className="w-4 h-4 rounded-full shrink-0"
-                      style={{ backgroundColor: cal.backgroundColor }}
+                <Card key={cal.id} padding="md" className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: cal.backgroundColor ? `${cal.backgroundColor}20` : '#EEF2FF' }}
+                  >
+                    <Calendar
+                      size={18}
+                      style={{ color: cal.backgroundColor || '#4F46E5' }}
                     />
-                  )}
-                  <div>
-                    <p className="font-medium text-gray-800">
-                      {cal.summary}
-                      {cal.primary && (
-                        <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                          Principal
-                        </span>
-                      )}
-                    </p>
-                    {cal.description && (
-                      <p className="text-xs text-gray-400 mt-0.5">{cal.description}</p>
-                    )}
-                    <p className="text-xs text-gray-400 font-mono mt-0.5">{cal.id}</p>
                   </div>
-                </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium text-gray-900 text-sm">{cal.summary}</p>
+                      {cal.primary && <Badge variant="info">Principal</Badge>}
+                    </div>
+                    <p className="text-xs text-gray-400 font-mono mt-0.5 truncate">{cal.id}</p>
+                  </div>
+                  <Link to="/bridges">
+                    <button className="flex items-center gap-1 text-xs text-brand-600 font-medium bg-brand-50 hover:bg-brand-100 rounded-lg px-2.5 py-1.5 transition-colors whitespace-nowrap">
+                      <ArrowLeftRight size={12} />
+                      Criar bridge
+                    </button>
+                  </Link>
+                </Card>
               ))}
+
+              {calendars.length === 0 && (
+                <Card padding="lg" className="text-center">
+                  <p className="text-sm text-gray-400">Nenhuma agenda encontrada para esta conta.</p>
+                </Card>
+              )}
             </div>
           )}
         </>
