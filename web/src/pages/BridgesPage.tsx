@@ -79,7 +79,16 @@ export default function BridgesPage() {
 
   function openWizard() {
     const firstId = accounts[0]?.id || '';
-    setForm({ ...EMPTY_FORM, sourceAccountId: firstId, targetAccountId: firstId });
+    // Pre-fill calendars too so the Next button is enabled even if accountId doesn't change
+    const firstSrcCal = srcCalendars[0]?.id || '';
+    const firstTgtCal = tgtCalendars[0]?.id || '';
+    setForm({
+      ...EMPTY_FORM,
+      sourceAccountId: firstId,
+      targetAccountId: firstId,
+      sourceCalendarId: firstSrcCal,
+      targetCalendarId: firstTgtCal,
+    });
     setShowWizard(true);
     setStep(1);
     setError('');
@@ -175,18 +184,15 @@ export default function BridgesPage() {
             <Card key={bridge.id} padding="md" className="space-y-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-semibold text-gray-900 truncate">
-                      {bridge.sourceAccount?.googleEmail?.split('@')[0]}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-sm font-semibold text-gray-900">
+                      {bridge.sourceAccount?.googleEmail}
                     </span>
                     <ArrowLeftRight size={14} className="text-brand-500 shrink-0" />
-                    <span className="text-sm font-semibold text-gray-900 truncate">
-                      {bridge.targetAccount?.googleEmail?.split('@')[0]}
+                    <span className="text-sm font-semibold text-gray-900">
+                      {bridge.targetAccount?.googleEmail}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1 font-mono truncate">
-                    {bridge.sourceCalendarId}
-                  </p>
                   <p className="text-xs text-gray-400 mt-0.5">
                     Título: "{bridge.titleTemplate}" · {bridge.syncPastDays}d / {bridge.syncFutureDays}d
                   </p>
