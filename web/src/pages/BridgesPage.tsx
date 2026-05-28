@@ -77,7 +77,13 @@ export default function BridgesPage() {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  function openWizard() { setShowWizard(true); setStep(1); setForm(EMPTY_FORM); setError(''); }
+  function openWizard() {
+    const firstId = accounts[0]?.id || '';
+    setForm({ ...EMPTY_FORM, sourceAccountId: firstId, targetAccountId: firstId });
+    setShowWizard(true);
+    setStep(1);
+    setError('');
+  }
   function closeWizard() { setShowWizard(false); setStep(1); }
 
   async function handleSave() {
